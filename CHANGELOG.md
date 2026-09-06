@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the Secure Ubuntu MCP Server will be documented in this file.
+All notable changes to the Ubuntu MCP Server will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial public release preparation
 - Comprehensive documentation and contributing guidelines
+
+## [0.2.3] - 2026-09-06
+
+### Changed
+- Replaced the legacy MCP server implementation with the updated `MCPServer` implementation.
+- Added Codex setup and compatibility alongside other stdio MCP clients.
+- Modernized packaging, dependency management, and development workflows around uv.
 
 ## [1.0.0] - 2025-06-20
 

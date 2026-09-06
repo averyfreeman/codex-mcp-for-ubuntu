@@ -1,6 +1,8 @@
 # install.py
 """
-Installation script for Ubuntu MCP Server
+Legacy system installer for Ubuntu MCP Server.
+
+New installations should follow README.md and use uv directly.
 """
 
 import os
@@ -23,8 +25,8 @@ class UbuntuMCPInstaller:
         print("Checking prerequisites...")
 
         # Check Python version
-        if sys.version_info < (3, 8):
-            print("Error: Python 3.8 or higher required")
+        if sys.version_info < (3, 10):
+            print("Error: Python 3.10 or higher required")
             return False
 
         # Check if running on Ubuntu
@@ -43,9 +45,16 @@ class UbuntuMCPInstaller:
         print("Installing dependencies...")
 
         try:
+            uv_executable = shutil.which("uv")
+            if not uv_executable:
+                print("uv is required; follow README.md to install it")
+                return False
             subprocess.run([
-                sys.executable, "-m", "pip", "install",
-                "mcp>=0.3.0", "psutil>=5.9.0"
+                uv_executable, "venv", str(self.install_dir / ".venv"),
+                "--managed-python", "-p", "3.12"
+            ], check=True)
+            subprocess.run([
+                uv_executable, "sync", "--directory", str(self.install_dir), "--frozen"
             ], check=True)
             return True
         except subprocess.CalledProcessError as e:
@@ -74,18 +83,14 @@ class UbuntuMCPInstaller:
         print("Installing server files...")
 
         try:
-            # Copy main server file
-            current_dir = Path(__file__).parent
-            server_file = current_dir / "ubuntu_mcp_server.py"
-            config_file = current_dir / "config.py"
-
-            if server_file.exists():
-                shutil.copy2(server_file, self.install_dir / "server.py")
-            if config_file.exists():
-                shutil.copy2(config_file, self.install_dir / "config.py")
-
-            # Make server executable
-            os.chmod(self.install_dir / "server.py", 0o755)
+            current_dir = Path(__file__).resolve().parent
+            for filename in ("pyproject.toml", "uv.lock", "README.md"):
+                shutil.copy2(current_dir / filename, self.install_dir / filename)
+            shutil.copytree(
+                current_dir / "ubuntu_mcp_server",
+                self.install_dir / "ubuntu_mcp_server",
+                dirs_exist_ok=True,
+            )
 
             return True
         except Exception as e:
@@ -105,7 +110,7 @@ Type=simple
 User={os.getenv('USER', 'ubuntu')}
 Group={os.getenv('USER', 'ubuntu')}
 WorkingDirectory={self.install_dir}
-ExecStart={sys.executable} {self.install_dir}/server.py
+ExecStart={self.install_dir}/.venv/bin/ubuntu-mcp-server
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -133,9 +138,9 @@ WantedBy=multi-user.target
             return False
 
         steps = [
-            self.install_dependencies,
             self.create_directories,
             self.install_files,
+            self.install_dependencies,
             self.create_service_file
         ]
 
@@ -168,4 +173,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-

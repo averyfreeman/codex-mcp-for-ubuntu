@@ -97,12 +97,13 @@ SecurityPolicy(
 
 For security-related questions or concerns:
 
-- **Email**: security@yourproject.com
+- **Maintainer**: Avery Freeman
+- **Email**: avery@unixgreybeard.org
 - **Response Time**: 48 hours for acknowledgment, 7 days for detailed response
 
 ---
 
-**Last Updated**: 2025-06-20
-**Next Review**: 2025-09-20
+**Last Updated**: 2026-09-06
+**Next Review**: 2027-09-06
 
 *This security policy is a living document and will be updated as the project evolves and new security considerations are identified.*

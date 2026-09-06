@@ -136,3 +136,7 @@ trace_*
 .bandit
 .safety
 security_report.*
+
+# Potentially proprietary prompt data
+AGENTS.md
+.agents

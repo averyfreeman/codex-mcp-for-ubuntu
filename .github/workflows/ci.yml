@@ -16,29 +16,20 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-
-    - name: Install security tools
-      run: |
-        python -m pip install --upgrade pip
-        pip install bandit safety
+    - uses: astral-sh/setup-uv@v6
 
     - name: Run Bandit Security Scan
       run: |
-        bandit -r main.py -f json -o bandit-report.json || true
-        bandit -r main.py
+        uvx --from bandit bandit -r ubuntu_mcp_server -f json -o bandit-report.json || true
+        uvx --from bandit bandit -r ubuntu_mcp_server
 
     - name: Check Dependencies for Vulnerabilities
       run: |
-        pip install -r requirements.txt
-        safety check --json --output safety-report.json || true
-        safety check
+        uvx --from safety safety check --json --output safety-report.json || true
+        uvx --from safety safety check
 
     - name: Upload Security Reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: security-reports
@@ -51,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11', '3.12']
+        python-version: ['3.10', '3.11', '3.12', '3.13']
 
     steps:
     - uses: actions/checkout@v4
@@ -61,63 +52,28 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Create virtual environment
-      run: |
-        python -m venv .venv
-        source .venv/bin/activate
-        python -m pip install --upgrade pip
+    - uses: astral-sh/setup-uv@v6
 
-    - name: Install dependencies
-      run: |
-        source .venv/bin/activate
-        pip install -r requirements.txt
+    - name: Install package
+      run: uv sync --frozen
 
-    - name: Run functionality tests
-      run: |
-        source .venv/bin/activate
-        python main.py --test
+    - name: Test MCP protocol and command policies
+      run: uv run python -m unittest discover -s tests -v
 
-    - name: Run security validation tests
-      run: |
-        source .venv/bin/activate
-        python main.py --security-test
-
-    - name: Test MCP protocol compliance
-      run: |
-        source .venv/bin/activate
-        timeout 10s python main.py --policy secure || test $? -eq 124
+    - name: Build distributions
+      run: uv build
 
   integration-test:
-    name: Integration Tests
+    name: Installed Package
     runs-on: ubuntu-latest
-    needs: [test, security-scan]
+    needs: [test]
     steps:
     - uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - uses: astral-sh/setup-uv@v6
       with:
-        python-version: '3.11'
-
-    - name: Full setup test
-      run: |
-        python setup.py --skip-claude --quiet
-
-    - name: Test server startup and shutdown
-      run: |
-        source .venv/bin/activate
-        python main.py --policy secure &
-        SERVER_PID=$!
-        sleep 5
-        if kill -0 $SERVER_PID 2>/dev/null; then
-          echo "Server started successfully"
-          kill $SERVER_PID
-          wait $SERVER_PID 2>/dev/null || true
-          echo "Server stopped successfully"
-        else
-          echo "Server failed to start"
-          exit 1
-        fi
+        python-version: '3.12'
+    - run: uv tool install .
+    - run: ubuntu-mcp-server --help
 
   release-check:
     name: Release Readiness

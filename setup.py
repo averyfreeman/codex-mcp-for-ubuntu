@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Setup script for Secure Ubuntu MCP Server
-Provides automated installation and configuration
+Legacy setup helper for Ubuntu MCP Server.
+
+New installations should follow README.md and use uv directly.
 """
 
 import os
@@ -9,14 +10,15 @@ import sys
 import subprocess
 import json
 import argparse
+import shutil
 from pathlib import Path
 from typing import Dict, Any
 
 
 def check_python_version():
-    """Ensure Python 3.9+ is being used"""
-    if sys.version_info < (3, 9):
-        print("❌ Python 3.9 or higher is required!")
+    """Ensure Python 3.10+ is being used"""
+    if sys.version_info < (3, 10):
+        print("❌ Python 3.10 or higher is required!")
         print(f"Current version: {sys.version}")
         sys.exit(1)
     print(f"✅ Python version: {sys.version}")
@@ -56,7 +58,11 @@ def create_virtual_environment():
     
     print("📦 Creating virtual environment...")
     try:
-        subprocess.run([sys.executable, '-m', 'venv', '.venv'], check=True)
+        uv_executable = shutil.which('uv')
+        if not uv_executable:
+            print("❌ uv is required; follow README.md to install it")
+            sys.exit(1)
+        subprocess.run([uv_executable, 'venv', '.venv', '--managed-python', '-p', '3.12'], check=True)
         print("✅ Virtual environment created")
     except subprocess.CalledProcessError as e:
         print(f"❌ Failed to create virtual environment: {e}")
@@ -66,21 +72,14 @@ def create_virtual_environment():
 def install_dependencies():
     """Install required dependencies"""
     print("📦 Installing dependencies...")
-    
-    pip_executable = Path('.venv/bin/pip')
-    if not pip_executable.exists():
-        pip_executable = Path('.venv/Scripts/pip.exe')  # Windows
-    
-    if not pip_executable.exists():
-        print("❌ Could not find pip in virtual environment")
+
+    uv_executable = shutil.which('uv')
+    if not uv_executable:
+        print("❌ uv is required; follow README.md to install it")
         sys.exit(1)
-    
+
     try:
-        # Upgrade pip first
-        subprocess.run([str(pip_executable), 'install', '--upgrade', 'pip'], check=True)
-        
-        # Install requirements
-        subprocess.run([str(pip_executable), 'install', '-r', 'requirements.txt'], check=True)
+        subprocess.run([uv_executable, 'sync'], check=True)
         print("✅ Dependencies installed successfully")
     except subprocess.CalledProcessError as e:
         print(f"❌ Failed to install dependencies: {e}")
@@ -90,29 +89,21 @@ def install_dependencies():
 def run_tests():
     """Run functionality and security tests"""
     print("🧪 Running tests...")
-    
-    python_executable = Path('.venv/bin/python3')
-    if not python_executable.exists():
-        python_executable = Path('.venv/Scripts/python.exe')  # Windows
-    
+
+    uv_executable = shutil.which('uv')
+    if not uv_executable:
+        print("❌ uv is required; follow README.md to install it")
+        return False
+
     try:
-        # Run functionality tests
-        print("  - Running functionality tests...")
-        result = subprocess.run([str(python_executable), 'main.py', '--test'], 
+        result = subprocess.run([uv_executable, 'run', 'python', '-m', 'unittest',
+                                 'discover', '-s', 'tests', '-v'],
                               capture_output=True, text=True)
         if result.returncode != 0:
-            print(f"❌ Functionality tests failed: {result.stderr}")
+            print(f"❌ Tests failed: {result.stderr}")
             return False
-        
-        # Run security tests
-        print("  - Running security tests...")
-        result = subprocess.run([str(python_executable), 'main.py', '--security-test'], 
-                              capture_output=True, text=True)
-        if result.returncode != 0:
-            print(f"❌ Security tests failed: {result.stderr}")
-            return False
-        
-        print("✅ All tests passed!")
+
+        print("✅ Tests passed!")
         return True
     except Exception as e:
         print(f"❌ Test execution failed: {e}")
@@ -186,7 +177,7 @@ def create_example_config():
     example_config = {
         "server": {
             "name": "secure-ubuntu-controller",
-            "version": "1.0.0",
+            "version": "0.2.3",
             "description": "Secure Ubuntu MCP Server",
             "log_level": "INFO"
         },
@@ -209,8 +200,7 @@ def create_example_config():
 
 def print_next_steps(install_path: str):
     """Print next steps for the user"""
-    venv_python = f"{install_path}/.venv/bin/python3"
-    
+
     print(f"""
 🎉 Installation Complete!
 
@@ -219,15 +209,15 @@ def print_next_steps(install_path: str):
 🚀 Next Steps:
 
 1. **Test the server**:
-   {venv_python} main.py --test
+   uv --directory {install_path} run python -m unittest discover -s tests -v
 
-2. **Run security tests**:
-   {venv_python} main.py --security-test
+2. **Start the server**:
+   uv --directory {install_path} run --frozen ubuntu-mcp-server
 
-3. **Start the server**:
-   {venv_python} main.py --policy secure
+3. **Connect Codex**:
+   codex mcp add ubuntu -- uv --directory {install_path} run --frozen ubuntu-mcp-server
 
-4. **Claude Desktop Integration**:
+4. **Claude Desktop Integration** (legacy):
    - Add the configuration shown above to your Claude Desktop config
    - Restart Claude Desktop
    - Test with: "Check my system status"

@@ -1,7 +1,7 @@
 {
   "server": {
     "name": "ubuntu-controller",
-    "version": "1.0.0",
+    "version": "0.2.3",
     "description": "MCP Server for Ubuntu System Control",
     "log_level": "INFO"
   },

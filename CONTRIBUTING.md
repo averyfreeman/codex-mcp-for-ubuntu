@@ -1,6 +1,6 @@
-# Contributing to Secure Ubuntu MCP Server
+# Contributing to Ubuntu MCP Server
 
-We're thrilled that you're interested in contributing to the Secure Ubuntu MCP Server! This document provides guidelines and information for contributors.
+We're thrilled that you're interested in contributing to the Ubuntu MCP Server! This document provides guidelines and information for contributors.
 
 ## 🎯 Project Vision
 
@@ -16,30 +16,28 @@ Our mission is to provide a **security-first**, production-ready MCP server that
 
 ### Prerequisites
 - Ubuntu 18.04+ (primary development environment)
-- Python 3.9+
+- Python 3.10+
 - Git
+- [uv](https://docs.astral.sh/uv/getting-started/installation/)
 - Basic knowledge of system security principles
 
 ### Setup Steps
 
 1. **Fork and Clone**
    ```bash
-   git clone https://github.com/yourusername/secure-ubuntu-mcp.git
-   cd secure-ubuntu-mcp
+   git clone https://github.com/averyfreeman/codex-mcp-for-ubuntu.git
+   cd codex-mcp-for-ubuntu
    ```
 
 2. **Environment Setup**
    ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   pip install -r requirements-dev.txt  # If we add dev dependencies
+   uv venv .venv --managed-python -p 3.12
+   uv sync
    ```
 
 3. **Verify Installation**
    ```bash
-   python main.py --test
-   python main.py --security-test
+   uv run python -m unittest discover -s tests -v
    ```
 
 ## 🔄 Development Workflow
@@ -74,12 +72,12 @@ All contributions must include appropriate tests and pass existing test suites.
 
 1. **Functionality Tests**
    ```bash
-   python main.py --test
+   uv run python -m unittest discover -s tests -v
    ```
 
 2. **Security Tests**
    ```bash
-   python main.py --security-test
+   uv run python -m unittest discover -s tests -v
    ```
 
 3. **Custom Tests**
@@ -180,7 +178,7 @@ SecurityPolicy     - Configuration and policy definitions
 SecurityChecker    - Path validation and command verification  
 AuditLogger       - Security event logging
 SecureUbuntuController - Main business logic with security integration
-FastMCP Tools     - MCP protocol interface layer
+MCPServer Tools     - MCP protocol interface layer
 ```
 
 ### Adding New Features
@@ -235,7 +233,7 @@ Use the bug report template and include:
 
 ### Security Issues
 **Do not create public issues for security vulnerabilities!**
-- Email security@yourproject.com
+- Email avery@unixgreybeard.org
 - Include detailed description and proof of concept
 - Allow time for investigation before public disclosure
 
@@ -309,7 +307,7 @@ We follow semantic versioning (MAJOR.MINOR.PATCH):
 
 - **General Questions**: Create a GitHub discussion
 - **Bug Reports**: Create a GitHub issue with the bug template
-- **Security Issues**: Email security@yourproject.com
+- **Security Issues**: Email avery@unixgreybeard.org
 - **Feature Ideas**: Create a GitHub issue with the feature template
 
 ---

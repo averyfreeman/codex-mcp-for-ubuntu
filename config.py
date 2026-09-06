@@ -14,7 +14,7 @@ from dataclasses import dataclass, asdict
 class ServerConfig:
     """Server configuration"""
     name: str = "ubuntu-controller"
-    version: str = "1.0.0"
+    version: str = "0.2.3"
     description: str = "MCP Server for Ubuntu System Control"
     max_connections: int = 10
     log_level: str = "INFO"

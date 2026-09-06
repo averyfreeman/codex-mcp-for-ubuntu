@@ -10,7 +10,7 @@ assignees: ''
 A clear and concise description of what the bug is.
 
 ## Security Impact
-**Important**: If this is a security vulnerability, please email security@yourproject.com instead of creating a public issue.
+**Important**: If this is a security vulnerability, please email avery@unixgreybeard.org instead of creating a public issue.
 
 - [ ] This is not a security vulnerability
 - [ ] This could potentially be a security issue (please email instead)
@@ -29,8 +29,8 @@ A clear and concise description of what actually happened.
 
 ## Environment Information
 - **OS**: [e.g. Ubuntu 22.04]
-- **Python Version**: [e.g. 3.9.5]
-- **MCP Server Version**: [e.g. 1.0.0]
+- **Python Version**: [e.g. 3.12.0]
+- **MCP Server Version**: [e.g. 0.2.3]
 - **Security Policy**: [e.g. secure/dev/custom]
 - **Claude Desktop Version** (if applicable): [e.g. 1.0.0]
 
