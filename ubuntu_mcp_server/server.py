@@ -976,14 +976,81 @@ async def test_controller():
 
 async def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(description="Secure Ubuntu MCP Server")
-    parser.add_argument("--policy", choices=["secure", "dev"], default="secure", help="Security policy to use")
-    parser.add_argument("--allow-sudo", action="store_true", help="Enable non-interactive sudo for explicitly allowed executables")
-    parser.add_argument("--sudo-command", action="append", default=[], metavar="ABSOLUTE_PATH", help="Executable allowed via sudo; repeat for multiple commands")
-    parser.add_argument("--command-timeout", type=int, help="Command timeout in seconds")
-    parser.add_argument("--test", action="store_true", help="Run functionality tests")
-    parser.add_argument("--security-test", action="store_true", help="Run security validation tests")
-    parser.add_argument("--log-level", default="INFO", help="Logging level (e.g., DEBUG, INFO, WARNING)")
+    parser = argparse.ArgumentParser(
+        description="Secure Ubuntu MCP Server",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Policy modes:\n"
+            "  secure (default): restrictive mode. File tools are limited to the user's home, /tmp,\n"
+            "      and /var/tmp; non-privileged commands must be on the built-in whitelist; limits are 15\n"
+            "      seconds, 1 MB files, 256 KB output, and 100 directory entries.\n"
+            "  dev: broader development mode. File tools additionally allow /opt and /usr/local;\n"
+            "      non-privileged commands are not whitelist-limited but remain subject to the\n"
+            "      forbidden-command list; limits are 60 seconds, 10 MB files, 1 MB output, and\n"
+            "      500 entries.\n"
+            "  Both modes use direct no-shell execution, resolve symlinks, check permissions, audit\n"
+            "  actions, and leave sudo disabled unless --allow-sudo is supplied.\n"
+            "\n"
+            "Sudo configuration:\n"
+            "  --allow-sudo is an application-level bool switch; it does not change /etc/sudoers.\n"
+            "  Each --sudo-command must be an absolute path for the executable after sudo and must\n"
+            "  also be authorized by the operating system's sudoers policy."
+        ),
+    )
+    parser.add_argument(
+        "--policy",
+        choices=["secure", "dev"],
+        default="secure",
+        help=(
+            "Application policy: secure uses a non-privileged command whitelist and tighter "
+            "path/resource limits; "
+            "dev permits broader development commands and paths with larger limits."
+        ),
+    )
+    parser.add_argument(
+        "--allow-sudo",
+        action="store_true",
+        help=(
+            "bool flag (default: false): permit non-interactive sudo requests; requires at least "
+            "one --sudo-command"
+        ),
+    )
+    parser.add_argument(
+        "--sudo-command",
+        action="append",
+        default=[],
+        metavar="ABSOLUTE_PATH",
+        help=(
+            "Absolute executable path allowed after sudo; repeat for multiple executables and "
+            "provide matching OS sudoers authorization; use with --allow-sudo"
+        ),
+    )
+    parser.add_argument(
+        "--command-timeout",
+        type=int,
+        help="Maximum seconds per command; defaults to 15 in secure mode and 60 in dev mode; must be positive",
+    )
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help=(
+            "bool flag (default: false): run built-in functionality checks and exit instead of "
+            "starting the MCP server; ignored if --security-test is also supplied"
+        ),
+    )
+    parser.add_argument(
+        "--security-test",
+        action="store_true",
+        help=(
+            "bool flag (default: false): run built-in security checks and exit instead of starting "
+            "the MCP server; takes precedence over --test"
+        ),
+    )
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        help="Logging level passed to Python logging (e.g., DEBUG, INFO, WARNING); default: INFO",
+    )
 
     args = parser.parse_args()
 

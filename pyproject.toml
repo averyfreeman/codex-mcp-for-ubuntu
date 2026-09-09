@@ -17,3 +17,10 @@ ubuntu-mcp-server = "ubuntu_mcp_server.server:cli"
 
 [tool.hatch.build.targets.wheel]
 packages = ["ubuntu_mcp_server"]
+
+[dependency-groups]
+dev = [
+    "distlib>=0.4.3",
+    "setuptools>=84.0.0",
+    "wheel>=0.48.0",
+]
