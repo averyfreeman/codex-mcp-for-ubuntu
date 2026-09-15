@@ -34,6 +34,7 @@ class SecurityConfig:
     max_file_size: int = 1024 * 1024  # 1MB
 
     def __post_init__(self):
+        """Replace omitted allow/deny lists with independent empty lists."""
         if self.allowed_paths is None:
             self.allowed_paths = []
         if self.forbidden_paths is None:
@@ -48,6 +49,7 @@ class ConfigManager:
     """Manage configuration loading and validation"""
 
     def __init__(self, config_path: Optional[str] = None):
+        """Initialize server and security settings at an optional file path."""
         self.config_path = config_path or self._get_default_config_path()
         self.server_config = ServerConfig()
         self.security_config = SecurityConfig()

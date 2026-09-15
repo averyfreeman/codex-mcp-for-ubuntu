@@ -242,6 +242,7 @@ def print_next_steps(install_path: str):
 
 
 def main():
+    """Run the legacy setup workflow and return a process-style exit code."""
     parser = argparse.ArgumentParser(description="Setup Secure Ubuntu MCP Server")
     parser.add_argument('--skip-tests', action='store_true', help='Skip running tests')
     parser.add_argument('--skip-claude', action='store_true', help='Skip Claude Desktop setup')

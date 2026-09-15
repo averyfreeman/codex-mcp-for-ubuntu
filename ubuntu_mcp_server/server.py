@@ -79,6 +79,7 @@ class SecurityChecker:
     """Centralized security validation and enforcement"""
 
     def __init__(self, policy: SecurityPolicy):
+        """Prepare policy-backed path and command validation state."""
         self.policy = policy
         self.logger = logging.getLogger(f"{__name__}.security")
 
@@ -343,6 +344,7 @@ class AuditLogger:
     """Security audit logging"""
 
     def __init__(self, enabled: bool = True, log_file: str = '/tmp/ubuntu_mcp_audit.log'):
+        """Configure optional append-only audit logging for security events."""
         self.enabled = enabled
         self.logger = logging.getLogger(f"{__name__}.audit")
 
@@ -384,6 +386,7 @@ class SecureUbuntuController:
     """Hardened Ubuntu system controller with comprehensive security"""
 
     def __init__(self, security_policy: SecurityPolicy):
+        """Construct a controller whose operations are constrained by ``security_policy``."""
         self.security_policy = security_policy
         self.security_checker = SecurityChecker(security_policy)
         self.audit_logger = AuditLogger(security_policy.audit_actions)
@@ -737,6 +740,7 @@ def create_ubuntu_mcp_server(security_policy: SecurityPolicy) -> MCPServer:
     mcp = MCPServer("Secure Ubuntu Controller")
 
     def format_error(e: Exception) -> str:
+        """Serialize an exception into the JSON error shape exposed by MCP tools."""
         return json.dumps({"error": str(e), "type": type(e).__name__}, indent=2)
 
     @mcp.tool("execute_command")
@@ -868,6 +872,7 @@ async def run_security_tests():
     results = {}
 
     async def run_test(name, test_func, *args):
+        """Run one security assertion and record its human-readable outcome."""
         try:
             result = test_func(*args)
             if inspect.isawaitable(result):

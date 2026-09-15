@@ -16,6 +16,7 @@ class UbuntuMCPInstaller:
     """Installer for Ubuntu MCP Server"""
 
     def __init__(self):
+        """Set the system installation, user configuration, and service paths."""
         self.install_dir = Path("/opt/ubuntu-mcp")
         self.config_dir = Path.home() / ".config" / "ubuntu-mcp"
         self.service_file = "/etc/systemd/system/ubuntu-mcp.service"
