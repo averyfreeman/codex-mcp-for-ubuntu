@@ -65,7 +65,8 @@ branch. Therefore there was no PR review thread or response to wait for.
 Because there was no PR and the branch was a harmless, newer documentation
 improvement, it was fast-forwarded into `main`. The remote and local
 `docs/quality-pass-20260914` branches were then deleted. `main` is now the only
-remote branch at `430a88c`; no rebase was necessary because `main` was already
+remote branch at `8b1c883` (the report commit; remediation is at `430a88c`); no
+rebase was necessary because `main` was already
 an ancestor.
 
 ## Validation
