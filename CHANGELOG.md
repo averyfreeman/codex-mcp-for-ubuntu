@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Moved audit logs from shared `/tmp` to the private per-user state directory
+  at `~/.local/state/ubuntu-mcp/audit.log`.
+- Removed shared system temporary directories from the default security policy.
+
+### Security
+- Added symlink-resistant, owner-only audit-log creation.
+- Replaced fixed-name temporary security fixtures with private `tempfile` directories.
+
 ### Added
 - Initial public release preparation
 - Comprehensive documentation and contributing guidelines
@@ -62,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Environment variable configuration support
 
 - **Logging & Monitoring**
-  - Structured audit logging to `/tmp/ubuntu_mcp_audit.log`
+  - Structured audit logging to the per-user state directory
   - Security violation logging with context
   - Command execution logging with user attribution
   - File operation logging with success/failure tracking
@@ -123,7 +132,7 @@ This initial release focuses heavily on security, implementing multiple layers o
 ### Known Security Considerations
 - Symlink resolution is performed on every operation for maximum security (slight performance impact)
 - Command whitelist mode is enabled by default in secure policy (may require policy adjustment for specific use cases)
-- Audit logs are written to `/tmp` by default (consider moving to more permanent location for production)
+- Audit logs are written to the owner-only per-user state directory by default
 - No network operations are currently supported (by design, but may limit some use cases)
 
 ### Future Security Enhancements

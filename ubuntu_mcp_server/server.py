@@ -16,7 +16,6 @@ import pwd
 import grp
 import shutil
 import stat
-import subprocess
 import tempfile
 import hashlib
 import time
@@ -340,10 +339,36 @@ class SecurityChecker:
         return canonical_path
 
 
+def _application_state_dir() -> Path:
+    """Return the private per-user state directory used by the server."""
+    state_dir = Path.home() / ".local" / "state" / "ubuntu-mcp"
+    state_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    state_dir.chmod(0o700)
+    return state_dir
+
+
+def _application_temp_dir() -> Path:
+    """Return the private temporary directory used by built-in checks."""
+    temp_dir = _application_state_dir() / "tmp"
+    temp_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    temp_dir.chmod(0o700)
+    return temp_dir
+
+
+class _SecureAuditHandler(logging.StreamHandler):
+    """Close the securely opened audit stream when the handler is closed."""
+
+    def close(self) -> None:
+        try:
+            self.stream.close()
+        finally:
+            super().close()
+
+
 class AuditLogger:
     """Security audit logging"""
 
-    def __init__(self, enabled: bool = True, log_file: str = '/tmp/ubuntu_mcp_audit.log'):
+    def __init__(self, enabled: bool = True, log_file: Optional[str] = None):
         """Configure optional append-only audit logging for security events."""
         self.enabled = enabled
         self.logger = logging.getLogger(f"{__name__}.audit")
@@ -352,8 +377,25 @@ class AuditLogger:
         if enabled:
             # Prevent adding handlers multiple times if instantiated repeatedly
             if not self.logger.handlers:
+                log_path: Optional[Path] = None
                 try:
-                    audit_handler = logging.FileHandler(log_file)
+                    default_log = log_file is None
+                    log_path = (
+                        _application_state_dir() / "audit.log"
+                        if default_log
+                        else Path(log_file).expanduser()
+                    )
+                    file_descriptor = os.open(
+                        log_path,
+                        os.O_WRONLY
+                        | os.O_APPEND
+                        | os.O_CREAT
+                        | getattr(os, "O_NOFOLLOW", 0),
+                        0o600,
+                    )
+                    os.fchmod(file_descriptor, 0o600)
+                    audit_stream = os.fdopen(file_descriptor, "a", encoding="utf-8")
+                    audit_handler = _SecureAuditHandler(audit_stream)
                     audit_formatter = logging.Formatter(
                         '%(asctime)s - AUDIT - %(levelname)s - %(message)s'
                     )
@@ -362,7 +404,10 @@ class AuditLogger:
                     self.logger.setLevel(logging.INFO)
                     self.logger.propagate = False
                 except (OSError, PermissionError) as e:
-                    logging.getLogger(__name__).error(f"Failed to configure audit logger at {log_file}: {e}")
+                    destination = log_path or log_file or "the default audit path"
+                    logging.getLogger(__name__).error(
+                        f"Failed to configure audit logger at {destination}: {e}"
+                    )
                     self.enabled = False
 
     def log_command(self, command: str, user: str, working_dir: Optional[str] = None):
@@ -673,7 +718,7 @@ def create_secure_policy() -> SecurityPolicy:
     script_dir = os.path.dirname(current_script)
 
     return SecurityPolicy(
-        allowed_paths=[home_dir, "/tmp", "/var/tmp"],
+        allowed_paths=[home_dir],
         forbidden_paths=["/etc", "/root", "/boot", "/sys", "/proc", "/dev", "/var/log", "/var/lib", "/usr", "/sbin",
                          "/bin"],
         max_command_timeout=15,
@@ -711,7 +756,7 @@ def create_development_policy() -> SecurityPolicy:
     script_dir = os.path.dirname(current_script)
 
     return SecurityPolicy(
-        allowed_paths=[home_dir, "/tmp", "/var/tmp", "/opt", "/usr/local"],
+        allowed_paths=[home_dir, "/opt", "/usr/local"],
         forbidden_paths=["/etc/passwd", "/etc/shadow", "/etc/sudoers", "/root", "/boot", "/sys", "/proc"],
         max_command_timeout=60,
         max_file_size=10 * 1024 * 1024,  # 10MB
@@ -883,42 +928,60 @@ async def run_security_tests():
         except Exception as e:
             results[name] = f"❓ ERROR: Test raised an unexpected exception: {type(e).__name__}: {e}"
 
-    # 1. Symlink attack
-    test_symlink = Path("/tmp/symlink_to_etc_passwd")
-    if test_symlink.exists(): test_symlink.unlink()
-    if not Path("/etc/passwd").exists():
-        results["Symlink Attack"] = "❓ SKIP: /etc/passwd not found."
-    else:
-        os.symlink("/etc/passwd", test_symlink)
-        await run_test("Symlink Attack", controller.read_file, str(test_symlink))
-        test_symlink.unlink()
+    with tempfile.TemporaryDirectory(
+        prefix=".ubuntu-mcp-security-",
+        dir=str(_application_temp_dir()),
+    ) as temp_dir:
+        temp_root = Path(temp_dir)
 
-    # 2. Path traversal
-    await run_test("Path Traversal", controller.read_file, "/tmp/../../etc/passwd")
+        # 1. Symlink attack
+        test_symlink = temp_root / "symlink_to_etc_passwd"
+        if not Path("/etc/passwd").exists():
+            results["Symlink Attack"] = "❓ SKIP: /etc/passwd not found."
+        else:
+            test_symlink.symlink_to("/etc/passwd")
+            try:
+                await run_test("Symlink Attack", controller.read_file, str(test_symlink))
+            finally:
+                test_symlink.unlink(missing_ok=True)
 
-    # 3. Server file protection
-    await run_test("Server File Protection", controller.read_file, __file__)
+        # 2. Path traversal
+        traversal_path = temp_root.joinpath(
+            *(".." for _ in temp_root.parts), "etc", "passwd"
+        )
+        await run_test("Path Traversal", controller.read_file, str(traversal_path))
 
-    # 4. Command injection (should be blocked by shlex parsing)
-    literal = await controller.execute_command("echo hello; ls /")
-    results["Command Injection (Semicolon)"] = ("✅ PASS: Shell syntax stays literal."
-        if literal["stdout"] == "hello; ls /\n" else "❌ FAIL: Unexpected command output.")
+        # 3. Server file protection
+        await run_test("Server File Protection", controller.read_file, __file__)
 
-    # 5. Forbidden command
-    await run_test("Forbidden Command (rm)", controller.execute_command, "rm -rf /")
+        # 4. Command injection (should be blocked by shlex parsing)
+        literal = await controller.execute_command("echo hello; ls /")
+        results["Command Injection (Semicolon)"] = (
+            "✅ PASS: Shell syntax stays literal."
+            if literal["stdout"] == "hello; ls /\n"
+            else "❌ FAIL: Unexpected command output."
+        )
 
-    # 6. Command not in whitelist
-    await run_test("Non-Whitelisted Command (nmap)", controller.execute_command, "nmap localhost")
+        # 5. Forbidden command
+        await run_test("Forbidden Command (rm)", controller.execute_command, "rm -rf /")
 
-    # 7. File size limit
-    try:
-        large_content = "x" * (policy.max_file_size + 1)
-        controller.write_file("/tmp/large_file_test.txt", large_content)
-        results["File Size Limit"] = "❌ FAIL: Large file write was not blocked."
-    except SecurityViolation:
-        results["File Size Limit"] = "✅ PASS: Large file write was blocked."
-    finally:
-        if os.path.exists("/tmp/large_file_test.txt"): os.remove("/tmp/large_file_test.txt")
+        # 6. Command not in whitelist
+        await run_test(
+            "Non-Whitelisted Command (nmap)",
+            controller.execute_command,
+            "nmap localhost",
+        )
+
+        # 7. File size limit
+        large_file = temp_root / "large_file_test.txt"
+        try:
+            large_content = "x" * (policy.max_file_size + 1)
+            controller.write_file(str(large_file), large_content)
+            results["File Size Limit"] = "❌ FAIL: Large file write was not blocked."
+        except SecurityViolation:
+            results["File Size Limit"] = "✅ PASS: Large file write was blocked."
+        finally:
+            large_file.unlink(missing_ok=True)
 
     print("\n--- Security Test Results ---")
     for name, result in results.items():
@@ -951,19 +1014,23 @@ async def test_controller():
         print("\n3. Testing safe command execution...")
         res = await controller.execute_command("echo 'Hello from secure controller'")
         print(f"  Command executed. STDOUT: {res['stdout'].strip()}")
-        assert res['return_code'] == 0
+        if res["return_code"] != 0:
+            raise RuntimeError(f"Safe command returned {res['return_code']}")
 
         print("\n4. Testing file operations...")
-        test_file = "/tmp/secure_mcp_test.txt"
-        test_content = "This is a test file."
-        controller.write_file(test_file, test_content, create_dirs=True)
-        print(f"  Wrote to {test_file}")
-        read_content = controller.read_file(test_file)
-        print(f"  Read back content. Match: {read_content == test_content}")
-        assert read_content == test_content
-        os.remove(test_file)
-        if os.path.exists(f"{test_file}.backup"): os.remove(f"{test_file}.backup")
-        print("  Cleaned up test file.")
+        with tempfile.TemporaryDirectory(
+            prefix=".ubuntu-mcp-test-",
+            dir=str(_application_temp_dir()),
+        ) as temp_dir:
+            test_file = Path(temp_dir) / "secure_mcp_test.txt"
+            test_content = "This is a test file."
+            controller.write_file(str(test_file), test_content, create_dirs=True)
+            print(f"  Wrote to {test_file}")
+            read_content = controller.read_file(str(test_file))
+            print(f"  Read back content. Match: {read_content == test_content}")
+            if read_content != test_content:
+                raise RuntimeError("Read-back content did not match written content")
+            print("  Cleaned up test file.")
 
         print("\n5. Testing expected security violation...")
         try:
@@ -986,8 +1053,9 @@ async def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Policy modes:\n"
-            "  secure (default): restrictive mode. File tools are limited to the user's home, /tmp,\n"
-            "      and /var/tmp; non-privileged commands must be on the built-in whitelist; limits are 15\n"
+            "  secure (default): restrictive mode. File tools are limited to the\n"
+            "      user's home, including private application state; non-privileged\n"
+            "      commands must be on the built-in whitelist; limits are 15\n"
             "      seconds, 1 MB files, 256 KB output, and 100 directory entries.\n"
             "  dev: broader development mode. File tools additionally allow /opt and /usr/local;\n"
             "      non-privileged commands are not whitelist-limited but remain subject to the\n"

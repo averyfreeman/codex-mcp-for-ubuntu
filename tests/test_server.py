@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import shutil
 from pathlib import Path
 import sys
 import unittest
@@ -8,7 +9,21 @@ from unittest.mock import patch
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-from ubuntu_mcp_server.server import SecurityChecker, SecurityViolation, create_secure_policy
+from ubuntu_mcp_server.server import (
+    SecurityChecker,
+    SecurityViolation,
+    create_development_policy,
+    create_secure_policy,
+)
+
+
+class PolicyTests(unittest.TestCase):
+    def test_default_policies_exclude_shared_temp_directories(self):
+        for policy_factory in (create_secure_policy, create_development_policy):
+            with self.subTest(policy=policy_factory.__name__):
+                policy = policy_factory()
+                self.assertNotIn('/tmp', policy.allowed_paths)
+                self.assertNotIn('/var/tmp', policy.allowed_paths)
 
 
 class CommandPolicyTests(unittest.TestCase):
@@ -36,8 +51,14 @@ class CommandPolicyTests(unittest.TestCase):
                 self.checker.validate_command(command)
 
     def test_command_resolution_ignores_inherited_path(self):
+        trusted_path = "/usr/bin:/bin:/usr/local/bin:/usr/sbin:/sbin"
+        expected_echo = shutil.which("echo", path=trusted_path)
+        self.assertIsNotNone(expected_echo)
         with patch.dict(os.environ, {'PATH': '/nonexistent'}):
-            self.assertEqual(self.checker.validate_command('echo hello'), ['/usr/bin/echo', 'hello'])
+            self.assertEqual(
+                self.checker.validate_command('echo hello'),
+                [expected_echo, 'hello'],
+            )
 
     def test_shell_mode_rejected(self):
         self.policy.use_shell_exec = True

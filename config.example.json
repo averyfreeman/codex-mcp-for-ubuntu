@@ -8,9 +8,7 @@
   "security": {
     "policy_name": "secure",
     "allowed_paths": [
-      "~/",
-      "/tmp",
-      "/var/tmp"
+      "~/"
     ],
     "forbidden_paths": [
       "/etc",

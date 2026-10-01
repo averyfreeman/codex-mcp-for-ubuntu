@@ -57,7 +57,7 @@ We will acknowledge receipt within 48 hours and provide a detailed response with
 #### Secure Policy (Default - Recommended for Production)
 ```python
 SecurityPolicy(
-    allowed_paths=["~/", "/tmp", "/var/tmp"],
+    allowed_paths=["~/"],
     forbidden_paths=["/etc", "/root", "/boot", "/sys", "/proc", "/dev", "/usr", "/bin", "/sbin"],
     allowed_commands=["ls", "cat", "echo", "pwd", "whoami", "date", "find", "grep", "apt"],
     forbidden_commands=["rm", "dd", "shutdown", "reboot", "mount", "chmod", "chown", "su", "sudo"],
@@ -68,6 +68,10 @@ SecurityPolicy(
     audit_actions=True
 )
 ```
+
+The server stores audit logs at `~/.local/state/ubuntu-mcp/audit.log` and
+creates private temporary fixtures under `~/.local/state/ubuntu-mcp/tmp`.
+Shared system temporary directories are not part of the default allowlist.
 
 ### Security Best Practices
 

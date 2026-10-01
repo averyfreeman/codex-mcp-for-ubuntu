@@ -20,8 +20,11 @@ jobs:
 
     - name: Run Bandit Security Scan
       run: |
-        uvx --from bandit bandit -r ubuntu_mcp_server -f json -o bandit-report.json || true
-        uvx --from bandit bandit -r ubuntu_mcp_server
+        uvx --from 'bandit==1.9.4' bandit -r ubuntu_mcp_server -f json -o bandit-report.json || true
+        uvx --from 'bandit==1.9.4' bandit -r ubuntu_mcp_server
+
+    - name: Run application security checks
+      run: uv run python -m ubuntu_mcp_server --security-test
 
     - name: Check Dependencies for Vulnerabilities
       run: |

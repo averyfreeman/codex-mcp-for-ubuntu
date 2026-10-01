@@ -6,6 +6,8 @@ Test client for Ubuntu MCP Server
 import asyncio
 import json
 import sys
+import tempfile
+from pathlib import Path
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
@@ -40,12 +42,6 @@ async def test_mcp_client():
             print(f"OS: {system_info['os_info'].get('PRETTY_NAME', 'Unknown')}")
             print(f"User: {system_info['current_user']}")
             
-            # Test directory listing
-            print("\n📁 Testing directory listing...")
-            result = await session.call_tool("list_directory", {"path": "/tmp"})
-            items = json.loads(result.content[0].text)
-            print(f"Found {len(items)} items in /tmp")
-            
             # Test command execution
             print("\n⚡ Testing command execution...")
             result = await session.call_tool("execute_command", {
@@ -54,19 +50,33 @@ async def test_mcp_client():
             cmd_result = json.loads(result.content[0].text)
             print(f"Command output: {cmd_result['stdout'].strip()}")
             
-            # Test file operations
-            print("\n📝 Testing file operations...")
-            test_content = "This is a test from the MCP client"
-            await session.call_tool("write_file", {
-                "file_path": "/tmp/mcp_client_test.txt",
-                "content": test_content
-            })
-            
-            result = await session.call_tool("read_file", {
-                "file_path": "/tmp/mcp_client_test.txt"
-            })
-            read_content = result.content[0].text
-            print(f"File content: {read_content}")
+            state_temp_dir = Path.home() / ".local" / "state" / "ubuntu-mcp" / "tmp"
+            state_temp_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+            state_temp_dir.chmod(0o700)
+            with tempfile.TemporaryDirectory(
+                prefix=".ubuntu-mcp-client-",
+                dir=str(state_temp_dir),
+            ) as temp_dir:
+                # Test directory listing
+                print("\n📁 Testing directory listing...")
+                result = await session.call_tool("list_directory", {"path": temp_dir})
+                items = json.loads(result.content[0].text)
+                print(f"Found {len(items)} items in the private test directory")
+
+                # Test file operations
+                print("\n📝 Testing file operations...")
+                test_content = "This is a test from the MCP client"
+                test_file = str(Path(temp_dir) / "mcp_client_test.txt")
+                await session.call_tool("write_file", {
+                    "file_path": test_file,
+                    "content": test_content
+                })
+
+                result = await session.call_tool("read_file", {
+                    "file_path": test_file
+                })
+                read_content = result.content[0].text
+                print(f"File content: {read_content}")
             
             # Test package search
             print("\n🔍 Testing package search...")

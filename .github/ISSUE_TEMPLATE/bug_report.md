@@ -47,7 +47,7 @@ Paste any error messages here
 
 ## Logs
 ```
-// Relevant log entries from /tmp/ubuntu_mcp_audit.log
+// Relevant log entries from ~/.local/state/ubuntu-mcp/audit.log
 // Remove any sensitive information like file paths
 ```
 

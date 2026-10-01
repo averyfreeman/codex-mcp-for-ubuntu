@@ -183,7 +183,7 @@ def create_example_config():
         },
         "security": {
             "policy_name": "secure",
-            "allowed_paths": ["~/", "/tmp", "/var/tmp"],
+            "allowed_paths": ["~/"],
             "forbidden_paths": ["/etc", "/root", "/boot", "/sys", "/proc"],
             "max_command_timeout": 30,
             "allow_sudo": False,
@@ -234,7 +234,7 @@ def print_next_steps(install_path: str):
 
 🔒 Security:
    - Review allowed_paths and forbidden_paths in your policy
-   - Monitor audit logs at /tmp/ubuntu_mcp_audit.log
+   - Monitor audit logs at ~/.local/state/ubuntu-mcp/audit.log
    - Start with secure policy and adjust as needed
 
 ❓ Having issues? Check the troubleshooting section in README.md

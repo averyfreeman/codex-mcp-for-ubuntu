@@ -103,9 +103,7 @@ class ConfigManager:
         self.security_config = SecurityConfig(
             policy_name="safe",
             allowed_paths=[
-                home_dir,
-                "/tmp",
-                "/var/tmp"
+                home_dir
             ],
             forbidden_paths=[
                 "/etc/passwd",
