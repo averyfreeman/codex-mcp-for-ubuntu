@@ -32,6 +32,11 @@ startup_timeout_sec = 30
 tool_timeout_sec = 60
 ```
 
+To keep a copy of diagnostic output while retaining stderr diagnostics, add
+`--log-level DEBUG --log-file /home/you/.local/state/ubuntu-mcp/server.log` to
+the server arguments. The log file is appended to and its parent directories
+are created when needed. MCP protocol traffic remains on stdout.
+
 See the [Codex MCP documentation](https://developers.openai.com/codex/mcp/) for client configuration.
 
 ## Sudo

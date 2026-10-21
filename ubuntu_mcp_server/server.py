@@ -30,6 +30,42 @@ import re
 from mcp.server.mcpserver import MCPServer
 
 
+LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+
+
+def configure_logging(log_level: str, log_file: Optional[str] = None) -> None:
+    """Configure diagnostics without contaminating the MCP stdout stream.
+
+    Stdio MCP servers must reserve stdout for protocol messages. Diagnostics
+    are therefore sent to stderr and, when requested, appended to ``log_file``
+    as well. Parent directories for an explicitly configured log file are
+    created if necessary.
+    """
+    level_name = log_level.upper()
+    level = getattr(logging, level_name, None)
+    if not isinstance(level, int):
+        raise ValueError(f"Unknown log level: {log_level}")
+
+    handlers = [logging.StreamHandler(sys.stderr)]
+    if log_file:
+        log_path = Path(log_file).expanduser()
+        try:
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            handlers.append(logging.FileHandler(log_path, encoding="utf-8"))
+        except (OSError, RuntimeError) as exc:
+            raise ValueError(f"Unable to open log file '{log_path}': {exc}") from exc
+
+    # The server is normally a standalone process. ``force`` also makes the
+    # option reliable when the entry point is embedded or invoked more than
+    # once in a test process.
+    logging.basicConfig(
+        level=level,
+        format=LOG_FORMAT,
+        handlers=handlers,
+        force=True,
+    )
+
+
 class SecurityViolation(Exception):
     """Raised when a security policy violation is detected"""
     pass
@@ -1051,6 +1087,14 @@ async def main():
         default="INFO",
         help="Logging level passed to Python logging (e.g., DEBUG, INFO, WARNING); default: INFO",
     )
+    parser.add_argument(
+        "--log-file",
+        metavar="PATH",
+        help=(
+            "Append diagnostic logs to PATH in addition to stderr; parent directories are "
+            "created when needed"
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -1061,7 +1105,10 @@ async def main():
     if args.command_timeout is not None and args.command_timeout <= 0:
         parser.error("--command-timeout must be positive")
 
-    logging.basicConfig(level=args.log_level.upper(), format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    try:
+        configure_logging(args.log_level, args.log_file)
+    except ValueError as exc:
+        parser.error(str(exc))
 
     if args.security_test:
         success = await run_security_tests()

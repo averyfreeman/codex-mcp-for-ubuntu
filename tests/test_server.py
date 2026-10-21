@@ -2,7 +2,9 @@ import asyncio
 import json
 import os
 from pathlib import Path
+import subprocess
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -65,6 +67,35 @@ class ProtocolTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(json.loads(result.content[0].text)['type'], 'SecurityViolation')
                 result = await session.call_tool('execute_command', {'command': 'echo hello; whoami'})
                 self.assertEqual(json.loads(result.content[0].text)['stdout'], 'hello; whoami\n')
+
+
+class CliLoggingTests(unittest.TestCase):
+    def test_log_file_receives_debug_output_and_keeps_stderr_diagnostics(self):
+        repo_root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            log_file = Path(temp_dir) / 'nested' / 'ubuntu-mcp.log'
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    '-m',
+                    'ubuntu_mcp_server',
+                    '--log-level',
+                    'DEBUG',
+                    '--log-file',
+                    str(log_file),
+                ],
+                cwd=repo_root,
+                input='',
+                text=True,
+                capture_output=True,
+                timeout=20,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(log_file.exists())
+            self.assertIn("Initializing server 'Secure Ubuntu Controller'", log_file.read_text())
+            self.assertIn("Starting Secure Ubuntu MCP Server with 'secure' policy", result.stderr)
 
 
 if __name__ == '__main__':
