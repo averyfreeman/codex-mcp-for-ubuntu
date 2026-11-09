@@ -140,3 +140,14 @@ security_report.*
 # Potentially proprietary prompt data
 AGENTS.md
 .agents
+github-actions-logs
+
+# Local credentials and generated development files
+node_modules/
+.build/
+.uv-cache/
+.gocache/
+.ruff_cache/
+.next/
+.gradle/
+.env*
